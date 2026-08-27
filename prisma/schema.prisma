@@ -1,0 +1,93 @@
+// Baseline — NIST CSF 2.0 self-assessment.
+//
+// Three models. Two are the framework catalog (Function, Category), seeded from
+// NIST reference data and never edited by a user. One holds the actual work
+// (Assessment). Keeping that line sharp means the catalog can be re-seeded from
+// the source at any time without touching anything a person typed.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// One of the six CSF 2.0 functions. Natural key: the NIST identifier ("GV").
+model Function {
+  id   String @id
+  name String
+  /// NIST publishes the functions in a deliberate sequence (GV, ID, PR, DE, RS,
+  /// RC) that is not alphabetical, so the order is stored rather than derived.
+  order Int
+
+  categories Category[]
+
+  @@map("functions")
+}
+
+/// One of the 22 CSF 2.0 categories. Natural key: "PR.AA".
+///
+/// This is the assessable unit. NIST puts 106 subcategories beneath these, and
+/// they are deliberately out of scope — see DECISIONS.md 0003.
+model Category {
+  id         String @id
+  functionId String
+  name       String
+  /// NIST's category description, stored verbatim. Never paraphrased.
+  statement  String
+  /// A one-sentence explanation in ordinary English. Written for this project,
+  /// not by NIST. Nullable only so the catalog can be seeded (Phase 2) before
+  /// the explanations are written (Phase 3); scripts/verify-catalog.ts fails
+  /// once any category is still missing one.
+  plainLanguage String?
+
+  function   Function    @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  assessment Assessment?
+
+  @@index([functionId])
+  @@map("categories")
+}
+
+/// Where the organization stands on one category.
+///
+/// NOT_APPLICABLE is a first-class status, not a way of skipping. Scoping a
+/// control out is a real assessment decision, so it requires a justification
+/// note — enforced in the server action, not the database.
+enum AssessmentStatus {
+  IMPLEMENTED
+  PARTIAL
+  NOT_IMPLEMENTED
+  NOT_APPLICABLE
+}
+
+/// How urgent a gap is. Only meaningful when the status is a gap.
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model Assessment {
+  id String @id @default(cuid())
+
+  /// Unique: one assessment per category. Baseline stores the present state,
+  /// not an audit trail — see DECISIONS.md 0004.
+  categoryId String @unique
+
+  status AssessmentStatus
+  notes  String?
+
+  /// Set only when the status is a gap (NOT_IMPLEMENTED or PARTIAL). There is
+  /// no separate Risk table; a gap is an assessment with follow-up fields set.
+  priority Priority?
+  owner    String?
+
+  updatedAt DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("assessments")
+}
