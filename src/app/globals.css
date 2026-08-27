@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/*
+ * Light theme only, on purpose. /report is meant to be printed to PDF from the
+ * browser, and maintaining a dark palette that also prints correctly is work this
+ * project does not need. See DECISIONS.md 0008.
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Assessment statuses. Also used for the coverage bars, so a reader learns the
+     colour once and it means the same thing on every screen. */
+  --color-status-none: var(--color-rose-600);
+  --color-status-partial: var(--color-amber-500);
+  --color-status-done: var(--color-emerald-600);
+  --color-status-na: var(--color-slate-400);
+
+  /* Risk bands, low to critical. */
+  --color-band-low: var(--color-emerald-600);
+  --color-band-medium: var(--color-amber-500);
+  --color-band-high: var(--color-orange-600);
+  --color-band-critical: var(--color-rose-700);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-slate-50);
+  color: var(--color-slate-900);
+}
+
+/* Only ever fires for someone tabbing through; a mouse user never sees it. */
+:focus-visible {
+  outline: 2px solid var(--color-slate-900);
+  outline-offset: 2px;
+}
