@@ -50,7 +50,7 @@ export const plainLanguage: Record<string, string> = {
   "PR.PS":
     "Keep laptops, servers, and software updated and configured safely, and remove anything you do not need.",
   "PR.IR":
-    "Your systems are set up to survive failures and attacks \u2014 backups exist, recovery has been tested, and one broken thing doesn't take everything down.",
+    "Your systems are set up to survive failures and attacks — networks are protected and kept separate, there's spare capacity, and one broken thing doesn't take everything down.",
 
   // ── DETECT ──
   "DE.CM":
