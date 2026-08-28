@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { AssessmentStatus } from "@/generated/prisma/enums";
+import { AssessmentStatus, Priority } from "@/generated/prisma/enums";
+import { isGap } from "@/lib/status";
 
 /**
  * Validation for an assessment write, kept separate from the Server Action that
@@ -14,12 +15,16 @@ const schema = z.object({
   categoryId: z.string().regex(/^[A-Z]{2}\.[A-Z]{2}$/, "Not a category ID"),
   status: z.enum(AssessmentStatus),
   notes: z.string().max(4000, "Notes are limited to 4000 characters").nullish(),
+  priority: z.enum(Priority).nullish(),
+  owner: z.string().max(120, "Owner is limited to 120 characters").nullish(),
 });
 
 export type ValidAssessment = {
   categoryId: string;
   status: AssessmentStatus;
   notes: string | null;
+  priority: Priority | null;
+  owner: string | null;
 };
 
 export type ValidationResult =
@@ -29,25 +34,40 @@ export type ValidationResult =
 export const NOT_APPLICABLE_NEEDS_NOTE =
   "Marking a category not applicable requires a justification.";
 
+/** Empty and whitespace-only text are the same thing: absent. */
+const clean = (value: string | null | undefined) => (value?.trim() ? value.trim() : null);
+
 export function validateAssessment(raw: unknown): ValidationResult {
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  // Empty and whitespace-only notes are the same thing: no note.
-  const notes = parsed.data.notes?.trim() ? parsed.data.notes.trim() : null;
+  const { categoryId, status } = parsed.data;
+  const notes = clean(parsed.data.notes);
 
   // Scoping a control out is a real assessment decision and has to be
   // defensible to whoever reads the dashboard, so it cannot be recorded
   // silently. Enforced here rather than only in the UI, because the UI is not
   // a control.
-  if (parsed.data.status === "NOT_APPLICABLE" && !notes) {
+  if (status === "NOT_APPLICABLE" && !notes) {
     return { ok: false, error: NOT_APPLICABLE_NEEDS_NOTE };
   }
 
+  // Priority and owner only mean anything on a gap. Clearing them here rather
+  // than ignoring them means that fixing a category — moving it from PARTIAL to
+  // IMPLEMENTED — does not leave an orphaned "HIGH, owned by Sam" hanging off a
+  // row that is no longer a gap, which would then show up on the dashboard.
+  const gap = isGap(status);
+
   return {
     ok: true,
-    value: { categoryId: parsed.data.categoryId, status: parsed.data.status, notes },
+    value: {
+      categoryId,
+      status,
+      notes,
+      priority: gap ? (parsed.data.priority ?? null) : null,
+      owner: gap ? clean(parsed.data.owner) : null,
+    },
   };
 }

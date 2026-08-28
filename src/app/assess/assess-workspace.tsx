@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CategoryRow } from "./category-row";
 import { saveAssessment } from "./actions";
 import { NOT_APPLICABLE_NEEDS_NOTE } from "@/lib/assessment-input";
-import type { AssessmentStatus } from "@/generated/prisma/enums";
+import { isGap } from "@/lib/status";
+import type { AssessmentStatus, Priority } from "@/generated/prisma/enums";
 import type { FunctionNode } from "@/lib/catalog";
 
 /** How long to wait after the last keystroke before writing notes. */
@@ -13,9 +14,27 @@ const NOTES_DEBOUNCE_MS = 800;
 export type AnswerState = {
   status: AssessmentStatus | null;
   notes: string;
+  priority: Priority | null;
+  owner: string;
   sync: "idle" | "saving" | "saved" | "error";
   error?: string;
 };
+
+/** The fields a write actually carries — everything but the sync bookkeeping. */
+type Draft = Pick<AnswerState, "status" | "notes" | "priority" | "owner">;
+
+const draftOf = (answer: AnswerState): Draft => ({
+  status: answer.status,
+  notes: answer.notes,
+  priority: answer.priority,
+  owner: answer.owner,
+});
+
+const sameDraft = (a: Draft, b: Draft) =>
+  a.status === b.status &&
+  a.notes === b.notes &&
+  a.priority === b.priority &&
+  a.owner === b.owner;
 
 export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
   const categories = useMemo(
@@ -32,6 +51,8 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
         {
           status: category.assessment?.status ?? null,
           notes: category.assessment?.notes ?? "",
+          priority: category.assessment?.priority ?? null,
+          owner: category.assessment?.owner ?? "",
           sync: "idle" as const,
         },
       ]),
@@ -48,33 +69,30 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
     return () => Object.values(pending).forEach(clearTimeout);
   }, []);
 
-  const persist = useCallback(
-    async (id: string, status: AssessmentStatus, notes: string) => {
-      setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], sync: "saving" } }));
+  const persist = useCallback(async (id: string, draft: Draft) => {
+    setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], sync: "saving" } }));
 
-      const result = await saveAssessment({ categoryId: id, status, notes });
+    const result = await saveAssessment({ categoryId: id, ...draft });
 
-      setAnswers((prev) => {
-        const current = prev[id];
-        // The row moved on while the request was in flight; that newer edit
-        // owns the state and has its own save.
-        if (current.status !== status || current.notes !== notes) return prev;
-        return {
-          ...prev,
-          [id]: result.ok
-            ? { ...current, sync: "saved" }
-            : { ...current, sync: "error", error: result.error },
-        };
-      });
-    },
-    [],
-  );
+    setAnswers((prev) => {
+      const current = prev[id];
+      // The row moved on while the request was in flight; that newer edit owns
+      // the state and has its own save.
+      if (!sameDraft(draftOf(current), draft)) return prev;
+      return {
+        ...prev,
+        [id]: result.ok
+          ? { ...current, sync: "saved" }
+          : { ...current, sync: "error", error: result.error },
+      };
+    });
+  }, []);
 
   /** Queue a save, replacing any save already queued for this row. */
   const schedule = useCallback(
-    (id: string, status: AssessmentStatus, notes: string, delay: number) => {
+    (id: string, draft: Draft, delay: number) => {
       clearTimeout(timers.current[id]);
-      timers.current[id] = setTimeout(() => void persist(id, status, notes), delay);
+      timers.current[id] = setTimeout(() => void persist(id, draft), delay);
     },
     [persist],
   );
@@ -82,23 +100,32 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
   const onStatusChange = useCallback(
     (id: string, status: AssessmentStatus) => {
       setAnswers((prev) => {
-        const notes = prev[id].notes;
+        // Leaving gap status drops priority and owner, matching what the server
+        // stores. Keeping them in the UI would show a priority on a category
+        // that is no longer a gap.
+        const gap = isGap(status);
+        const next: AnswerState = {
+          ...prev[id],
+          status,
+          priority: gap ? prev[id].priority : null,
+          owner: gap ? prev[id].owner : "",
+        };
 
         // Refused by the Server Action too. Catching it here means the user
         // gets the message next to the field that fixes it rather than
         // watching a request fail.
-        if (status === "NOT_APPLICABLE" && !notes.trim()) {
+        if (status === "NOT_APPLICABLE" && !next.notes.trim()) {
           clearTimeout(timers.current[id]);
           return {
             ...prev,
-            [id]: { ...prev[id], status, sync: "error", error: NOT_APPLICABLE_NEEDS_NOTE },
+            [id]: { ...next, sync: "error", error: NOT_APPLICABLE_NEEDS_NOTE },
           };
         }
 
         // A status click is deliberate and final, so it saves immediately
         // rather than waiting out the notes debounce.
-        schedule(id, status, notes, 0);
-        return { ...prev, [id]: { ...prev[id], status, sync: "saving" } };
+        schedule(id, draftOf(next), 0);
+        return { ...prev, [id]: { ...next, sync: "saving" } };
       });
     },
     [schedule],
@@ -119,8 +146,35 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
           };
         }
 
-        schedule(id, status, notes, NOTES_DEBOUNCE_MS);
-        return { ...prev, [id]: { ...prev[id], notes, sync: "saving" } };
+        const next = { ...prev[id], notes };
+        schedule(id, draftOf(next), NOTES_DEBOUNCE_MS);
+        return { ...prev, [id]: { ...next, sync: "saving" } };
+      });
+    },
+    [schedule],
+  );
+
+  /** Priority is a click, so it writes immediately. Owner is typed, so it waits. */
+  const onPriorityChange = useCallback(
+    (id: string, priority: Priority) => {
+      setAnswers((prev) => {
+        if (prev[id].status === null) return prev;
+        // Clicking the selected priority again clears it.
+        const next = { ...prev[id], priority: prev[id].priority === priority ? null : priority };
+        schedule(id, draftOf(next), 0);
+        return { ...prev, [id]: { ...next, sync: "saving" } };
+      });
+    },
+    [schedule],
+  );
+
+  const onOwnerChange = useCallback(
+    (id: string, owner: string) => {
+      setAnswers((prev) => {
+        if (prev[id].status === null) return { ...prev, [id]: { ...prev[id], owner } };
+        const next = { ...prev[id], owner };
+        schedule(id, draftOf(next), NOTES_DEBOUNCE_MS);
+        return { ...prev, [id]: { ...next, sync: "saving" } };
       });
     },
     [schedule],
@@ -168,6 +222,8 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
                     answer={answers[category.id]}
                     onStatusChange={(status) => onStatusChange(category.id, status)}
                     onNotesChange={(notes) => onNotesChange(category.id, notes)}
+                    onPriorityChange={(priority) => onPriorityChange(category.id, priority)}
+                    onOwnerChange={(owner) => onOwnerChange(category.id, owner)}
                   />
                 ))}
               </ul>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ASSESSMENT_STATUSES } from "@/lib/status";
-import type { AssessmentStatus } from "@/generated/prisma/enums";
+import { ASSESSMENT_STATUSES, PRIORITIES, isGap } from "@/lib/status";
+import type { AssessmentStatus, Priority } from "@/generated/prisma/enums";
 import type { CategoryNode } from "@/lib/catalog";
 import type { AnswerState } from "./assess-workspace";
 
@@ -11,15 +11,20 @@ export function CategoryRow({
   answer,
   onStatusChange,
   onNotesChange,
+  onPriorityChange,
+  onOwnerChange,
 }: {
   category: CategoryNode;
   answer: AnswerState;
   onStatusChange: (status: AssessmentStatus) => void;
   onNotesChange: (notes: string) => void;
+  onPriorityChange: (priority: Priority) => void;
+  onOwnerChange: (owner: string) => void;
 }) {
   const [showStatement, setShowStatement] = useState(false);
   const notesId = useId();
   const statementId = useId();
+  const ownerId = useId();
 
   // The justification for scoping something out is not optional, so the notes
   // field opens itself rather than waiting to be found.
@@ -113,6 +118,49 @@ export function CategoryRow({
               </span>
             )}
           </p>
+        </div>
+      )}
+
+      {/* A gap is the only thing that needs following up, so priority and owner
+          appear only once the status is one. They are cleared on the way out
+          too, so fixing a category does not leave an owner attached to it. */}
+      {isGap(answer.status) && (
+        <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-md bg-slate-50 px-4 py-3">
+          <fieldset className="flex flex-wrap items-center gap-1.5">
+            <legend className="sr-only">Priority for {category.id}</legend>
+            <span className="mr-1 text-xs font-medium text-slate-600">Priority</span>
+            {PRIORITIES.map((priority) => {
+              const selected = answer.priority === priority.value;
+              return (
+                <button
+                  key={priority.value}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onPriorityChange(priority.value)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium ring-1 transition-colors ${
+                    selected
+                      ? priority.className
+                      : "bg-white text-slate-500 ring-slate-200 hover:text-slate-900"
+                  }`}
+                >
+                  {priority.label}
+                </button>
+              );
+            })}
+          </fieldset>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor={ownerId} className="text-xs font-medium text-slate-600">
+              Owner
+            </label>
+            <input
+              id={ownerId}
+              value={answer.owner}
+              onChange={(event) => onOwnerChange(event.target.value)}
+              placeholder="Who is fixing this?"
+              className="w-44 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-900 placeholder:text-slate-400"
+            />
+          </div>
         </div>
       )}
     </li>
