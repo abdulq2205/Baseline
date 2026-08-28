@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CategoryRow } from "./category-row";
 import { saveAssessment } from "./actions";
 import { NOT_APPLICABLE_NEEDS_NOTE } from "@/lib/assessment-input";
 import type { AssessmentStatus } from "@/generated/prisma/enums";
 import type { FunctionNode } from "@/lib/catalog";
+
+/** How long to wait after the last keystroke before writing notes. */
+const NOTES_DEBOUNCE_MS = 800;
 
 export type AnswerState = {
   status: AssessmentStatus | null;
@@ -37,6 +40,14 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
+  // One pending timer per category, so typing in one row never cancels
+  // another row's queued write.
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(() => {
+    const pending = timers.current;
+    return () => Object.values(pending).forEach(clearTimeout);
+  }, []);
+
   const persist = useCallback(
     async (id: string, status: AssessmentStatus, notes: string) => {
       setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], sync: "saving" } }));
@@ -59,6 +70,15 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
     [],
   );
 
+  /** Queue a save, replacing any save already queued for this row. */
+  const schedule = useCallback(
+    (id: string, status: AssessmentStatus, notes: string, delay: number) => {
+      clearTimeout(timers.current[id]);
+      timers.current[id] = setTimeout(() => void persist(id, status, notes), delay);
+    },
+    [persist],
+  );
+
   const onStatusChange = useCallback(
     (id: string, status: AssessmentStatus) => {
       setAnswers((prev) => {
@@ -68,40 +88,42 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
         // gets the message next to the field that fixes it rather than
         // watching a request fail.
         if (status === "NOT_APPLICABLE" && !notes.trim()) {
+          clearTimeout(timers.current[id]);
           return {
             ...prev,
             [id]: { ...prev[id], status, sync: "error", error: NOT_APPLICABLE_NEEDS_NOTE },
           };
         }
 
-        void persist(id, status, notes);
+        // A status click is deliberate and final, so it saves immediately
+        // rather than waiting out the notes debounce.
+        schedule(id, status, notes, 0);
         return { ...prev, [id]: { ...prev[id], status, sync: "saving" } };
       });
     },
-    [persist],
+    [schedule],
   );
 
-  const onNotesChange = useCallback((id: string, notes: string) => {
-    setAnswers((prev) => ({ ...prev, [id]: { ...prev[id], notes } }));
-  }, []);
-
-  /** Notes save when the field loses focus; typing does not write on every key. */
-  const onNotesBlur = useCallback(
-    (id: string) => {
+  const onNotesChange = useCallback(
+    (id: string, notes: string) => {
       setAnswers((prev) => {
-        const { status, notes } = prev[id];
-        if (status === null) return prev;
+        const status = prev[id].status;
+        // Notes with no status would be a row with nothing to record.
+        if (status === null) return { ...prev, [id]: { ...prev[id], notes } };
+
         if (status === "NOT_APPLICABLE" && !notes.trim()) {
+          clearTimeout(timers.current[id]);
           return {
             ...prev,
-            [id]: { ...prev[id], sync: "error", error: NOT_APPLICABLE_NEEDS_NOTE },
+            [id]: { ...prev[id], notes, sync: "error", error: NOT_APPLICABLE_NEEDS_NOTE },
           };
         }
-        void persist(id, status, notes);
-        return prev;
+
+        schedule(id, status, notes, NOTES_DEBOUNCE_MS);
+        return { ...prev, [id]: { ...prev[id], notes, sync: "saving" } };
       });
     },
-    [persist],
+    [schedule],
   );
 
   return (
@@ -146,7 +168,6 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
                     answer={answers[category.id]}
                     onStatusChange={(status) => onStatusChange(category.id, status)}
                     onNotesChange={(notes) => onNotesChange(category.id, notes)}
-                    onNotesBlur={() => onNotesBlur(category.id)}
                   />
                 ))}
               </ul>

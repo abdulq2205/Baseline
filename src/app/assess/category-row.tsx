@@ -11,13 +11,11 @@ export function CategoryRow({
   answer,
   onStatusChange,
   onNotesChange,
-  onNotesBlur,
 }: {
   category: CategoryNode;
   answer: AnswerState;
   onStatusChange: (status: AssessmentStatus) => void;
   onNotesChange: (notes: string) => void;
-  onNotesBlur: () => void;
 }) {
   const [showStatement, setShowStatement] = useState(false);
   const notesId = useId();
@@ -96,7 +94,6 @@ export function CategoryRow({
             rows={2}
             value={answer.notes}
             onChange={(event) => onNotesChange(event.target.value)}
-            onBlur={onNotesBlur}
             placeholder={
               notesRequired
                 ? "Why is this out of scope for your organization?"
@@ -108,6 +105,8 @@ export function CategoryRow({
             }`}
           />
           <p className="mt-1 min-h-4 text-xs">
+            {answer.sync === "saving" && <span className="text-slate-400">Saving…</span>}
+            {answer.sync === "saved" && <span className="text-emerald-700">Saved</span>}
             {answer.sync === "error" && (
               <span role="alert" className="font-medium text-rose-700">
                 {answer.error}
