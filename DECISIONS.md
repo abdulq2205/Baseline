@@ -167,3 +167,44 @@ showing up as outstanding work that has actually been done.
 **Why in the validator and not just the UI.** The UI clears them too, so the screen
 matches what was stored, but the validator is the thing that guarantees it. A write
 that arrives from anywhere else still cannot create the inconsistent state.
+
+---
+
+## 0008 — Coverage returns null, not zero, when there is nothing to divide by
+
+**Phase:** 5
+
+**Decision.** `calculateCoverage` returns `percent: null` when no assessed category counts
+toward the score — either nothing has been assessed, or everything assessed was scoped out
+as not applicable. The dashboard renders that as an em dash.
+
+**Why.** 0% and "no basis yet" are different claims. 0% says nothing is in place, which is
+a finding. Null says nothing has been measured, which is an absence of a finding. Collapsing
+them would let an organization that has not started look identical to one that has looked
+carefully and found nothing — and the first of those is much easier to fix.
+
+**Where it shows.** Three of six functions read "not assessed" rather than 0% on a fresh
+database, which is the honest state.
+
+---
+
+## 0009 — Three things are excluded from coverage, for three different reasons
+
+**Phase:** 5
+
+**NOT_APPLICABLE leaves both sides of the fraction.** Scoping a control out is a legitimate
+decision. Counting it as a zero punishes an organization for a control that does not apply
+to it; counting it as a point rewards it for work it never did. Leaving it out is the only
+option that does neither.
+
+**Unassessed categories are excluded entirely.** Coverage answers "of what you have looked
+at, how much is in place." How far through the assessment you are is a separate number, and
+the dashboard shows it separately. Merging them would conflate not knowing with not having.
+
+**PARTIAL counts as a half.** This is the weakest of the three and worth admitting: "we have
+some of this" is not really 50% of anything measurable. But zero tells an organization that
+starting work earns nothing, and one tells them a half-finished control is done. Half is the
+honest middle for a number whose job is tracking direction, not grading.
+
+---
+
