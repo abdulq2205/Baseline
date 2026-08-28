@@ -10,6 +10,8 @@ import type { FunctionNode } from "@/lib/catalog";
 
 /** How long to wait after the last keystroke before writing notes. */
 const NOTES_DEBOUNCE_MS = 800;
+/** How long "Saved" stays on screen. It is a confirmation, not a state. */
+const SAVED_VISIBLE_MS = 2000;
 
 export type AnswerState = {
   status: AssessmentStatus | null;
@@ -86,6 +88,18 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
           : { ...current, sync: "error", error: result.error },
       };
     });
+
+    // Clear the confirmation again, but only if nothing has happened to the row
+    // since — a later save or an error owns the indicator by then.
+    if (result.ok) {
+      setTimeout(() => {
+        setAnswers((prev) =>
+          prev[id].sync === "saved"
+            ? { ...prev, [id]: { ...prev[id], sync: "idle" } }
+            : prev,
+        );
+      }, SAVED_VISIBLE_MS);
+    }
   }, []);
 
   /** Queue a save, replacing any save already queued for this row. */
