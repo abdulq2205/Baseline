@@ -22,6 +22,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { prisma } from "../src/lib/db";
+import { plainLanguage } from "./seed-plain-language";
 
 /** What CSF 2.0 actually contains. The seed refuses to finish on anything else. */
 const EXPECTED = { functions: 6, categories: 22 } as const;
@@ -100,6 +101,8 @@ async function main() {
   );
 
   let categoryCount = 0;
+  const seededIds = new Set<string>();
+  const missingPlainLanguage: string[] = [];
 
   // Upsert rather than delete-and-insert: assessments reference categories with
   // ON DELETE CASCADE, so wiping the catalog to re-seed it would silently take
@@ -118,17 +121,23 @@ async function main() {
       if (isWithdrawn(category)) continue;
       categoryCount += 1;
 
+      const id = category.elementIdentifier;
+      seededIds.add(id);
+
+      const explanation = plainLanguage[id]?.trim();
+      if (!explanation) missingPlainLanguage.push(id);
+
       const fields = {
         functionId: fn.elementIdentifier,
         name: required(category, "title"),
         statement: required(category, "text"),
       };
       await prisma.category.upsert({
-        where: { id: category.elementIdentifier },
-        create: { id: category.elementIdentifier, ...fields },
-        // plainLanguage is deliberately not touched here. It is written in
-        // Phase 3 and a re-seed must not blank it out.
-        update: fields,
+        where: { id },
+        create: { id, ...fields, plainLanguage: explanation ?? null },
+        // An explanation already in the database is not blanked out by a
+        // re-seed that happens to be missing one.
+        update: { ...fields, ...(explanation ? { plainLanguage: explanation } : {}) },
       });
     }
   }
@@ -143,11 +152,24 @@ async function main() {
     }
   }
 
-  console.log(`Seeded ${actual.functions} functions and ${actual.categories} categories.`);
+  // A key that matches no category is a typo. Silently ignoring it would leave
+  // a category unexplained while the file looks complete.
+  const unknown = Object.keys(plainLanguage).filter((id) => !seededIds.has(id));
+  if (unknown.length > 0) {
+    throw new Error(
+      `seed-plain-language.ts has ${unknown.length} key(s) that are not CSF 2.0 ` +
+        `categories: ${unknown.join(", ")}`,
+    );
+  }
 
-  const missing = await prisma.category.count({ where: { plainLanguage: null } });
-  if (missing > 0) {
-    console.log(`${missing} categories have no plain-language explanation yet (Phase 3).`);
+  console.log(`Seeded ${actual.functions} functions and ${actual.categories} categories.`);
+  if (missingPlainLanguage.length > 0) {
+    console.log(
+      `${missingPlainLanguage.length} without a plain-language explanation: ` +
+        missingPlainLanguage.join(", "),
+    );
+  } else {
+    console.log("All 22 categories have a plain-language explanation.");
   }
 }
 
