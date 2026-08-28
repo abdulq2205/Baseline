@@ -38,7 +38,7 @@ export const plainLanguage: Record<string, string> = {
   "ID.RA":
     "Work out what could realistically go wrong, how likely it is, and how badly it would hurt.",
   "ID.IM":
-    "Learn from incidents, audits, and near misses, and actually fix what they expose.",
+    "You regularly look for weaknesses through testing and past incidents, and you actually fix what you find instead of just documenting it.",
 
   // ── PROTECT ──
   "PR.AA":
@@ -50,7 +50,7 @@ export const plainLanguage: Record<string, string> = {
   "PR.PS":
     "Keep laptops, servers, and software updated and configured safely, and remove anything you do not need.",
   "PR.IR":
-    "Set your systems and network up so that one failure or one compromised machine does not take everything down with it.",
+    "Your systems are set up to survive failures and attacks \u2014 backups exist, recovery has been tested, and one broken thing doesn't take everything down.",
 
   // ── DETECT ──
   "DE.CM":
@@ -64,7 +64,7 @@ export const plainLanguage: Record<string, string> = {
   "RS.AN":
     "During an incident, work out what actually happened and how far it spread, and preserve the evidence while you do.",
   "RS.CO":
-    "Know who you have to tell when something goes wrong -- staff, customers, insurers, regulators -- and how quickly.",
+    "Know who you have to tell when something goes wrong — staff, customers, insurers, regulators — and how quickly.",
   "RS.MI":
     "Contain the problem fast so it stops spreading, then remove it.",
 
