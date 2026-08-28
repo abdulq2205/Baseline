@@ -113,3 +113,57 @@ was last set. And a category can carry exactly one gap, so two genuinely distinc
 problems under the same category share one priority and one owner. Both are acceptable
 at one-organization scale and both are schema changes, not rewrites, if they stop being
 acceptable.
+
+---
+
+## 0005 — Assessment state lives in one map, not in each row
+
+**Phase:** 4
+
+**Decision.** `AssessWorkspace` owns a `Record<categoryId, AnswerState>`; rows are
+controlled and hold nothing but local UI state (whether the NIST description is open).
+
+**Why.** The per-function progress counts ("3 of 4 assessed") need to read every
+answer at once. With state inside each row that would need lifting or a subscription;
+one map keyed by ID keeps it a plain read.
+
+**Autosave details worth defending.** Status and priority clicks save immediately —
+a click is deliberate and final. Notes and owner debounce at 800ms, keyed per category
+so typing in one row never cancels another row's pending write. When a response
+arrives it is applied only if the row still holds the exact draft that was sent;
+otherwise a slow response from an earlier edit would overwrite a newer one. With no
+submit button, the failure mode to design against is a silent lost write.
+
+---
+
+## 0006 — Not-applicable is checked in two places on purpose
+
+**Phase:** 4
+
+**Decision.** The justification requirement lives in `validateAssessment` (the Server
+Action's input parser) and again in the client before a request is sent.
+
+**Why both.** The client check exists so the user gets the message next to the field
+that fixes it instead of watching a request fail. The server check exists because the
+client is not a control — it is code the user's browser runs and can skip. Removing
+the server check would make the requirement cosmetic; removing the client check would
+only make it ruder.
+
+---
+
+## 0007 — Leaving gap status clears priority and owner
+
+**Phase:** 4
+
+**Decision.** When a status changes to anything that is not `NOT_IMPLEMENTED` or
+`PARTIAL`, `validateAssessment` sets `priority` and `owner` to null rather than
+passing through whatever the client sent.
+
+**Why.** Otherwise fixing a category — moving it from PARTIAL to IMPLEMENTED — leaves
+an orphaned "HIGH, owned by Sam" attached to a row that is no longer a gap. Since the
+dashboard's open-gaps table is driven by these fields, that stale data would keep
+showing up as outstanding work that has actually been done.
+
+**Why in the validator and not just the UI.** The UI clears them too, so the screen
+matches what was stored, but the validator is the thing that guarantees it. A write
+that arrives from anywhere else still cannot create the inconsistent state.
