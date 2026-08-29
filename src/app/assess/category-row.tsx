@@ -88,6 +88,28 @@ function ScorePreview({ likelihood, impact }: { likelihood: number | null; impac
   );
 }
 
+/**
+ * Grow a textarea to fit its content.
+ *
+ * The notes are a paragraph, not a line, and a fixed `rows` either clips longer
+ * ones or leaves a lot of blank box under short ones. Setting height to auto
+ * first is what makes it shrink as well as grow: without it, scrollHeight only
+ * ever reports the taller of content and current height, so the box would
+ * ratchet up and never come back down.
+ *
+ * Done on the ref callback rather than in an effect so it runs during commit,
+ * before paint. An effect would render at the wrong height for one frame.
+ */
+function fitToContent(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+  element.style.height = "auto";
+  // scrollHeight excludes the border, but box-sizing: border-box means the
+  // height we set includes it, so the box lands two pixels short and clips the
+  // last line. offsetHeight - clientHeight is exactly those borders.
+  const borders = element.offsetHeight - element.clientHeight;
+  element.style.height = `${element.scrollHeight + borders}px`;
+}
+
 export function CategoryRow({
   category,
   answer,
@@ -180,16 +202,20 @@ export function CategoryRow({
           </label>
           <textarea
             id={notesId}
+            ref={fitToContent}
             rows={2}
             value={answer.notes}
-            onChange={(event) => onNotesChange(event.target.value)}
+            onChange={(event) => {
+              fitToContent(event.target);
+              onNotesChange(event.target.value);
+            }}
             placeholder={
               notesRequired
                 ? "Why is this out of scope for your organization?"
                 : "Optional. What is in place, and where does it fall short?"
             }
             aria-invalid={answer.sync === "error"}
-            className={`mt-1 block w-full resize-y rounded-md border bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 ${
+            className={`mt-1 block w-full resize-none overflow-hidden rounded-md border bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 ${
               answer.sync === "error" ? "border-rose-400" : "border-slate-200"
             }`}
           />
