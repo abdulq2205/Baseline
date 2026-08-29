@@ -173,6 +173,29 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
     [schedule],
   );
 
+  /** Both scales are click inputs, so they write immediately like status does. */
+  const onScoreChange = useCallback(
+    (id: string, field: "likelihood" | "impact", value: number) => {
+      setAnswers((prev) => {
+        if (prev[id].status === null) return prev;
+        // Clicking the selected value again clears it. Without this there is no
+        // way back to unscored once you have picked something.
+        const next = { ...prev[id], [field]: prev[id][field] === value ? null : value };
+
+        // The validator refuses a half-filled score, so do not send one. The
+        // row keeps the selection locally until its partner is chosen.
+        if ((next.likelihood === null) !== (next.impact === null)) {
+          clearTimeout(timers.current[id]);
+          return { ...prev, [id]: { ...next, sync: "idle" } };
+        }
+
+        schedule(id, draftOf(next), 0);
+        return { ...prev, [id]: { ...next, sync: "saving" } };
+      });
+    },
+    [schedule],
+  );
+
   const onOwnerChange = useCallback(
     (id: string, owner: string) => {
       setAnswers((prev) => {
@@ -227,6 +250,8 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
                     answer={answers[category.id]}
                     onStatusChange={(status) => onStatusChange(category.id, status)}
                     onNotesChange={(notes) => onNotesChange(category.id, notes)}
+                    onLikelihoodChange={(value) => onScoreChange(category.id, "likelihood", value)}
+                    onImpactChange={(value) => onScoreChange(category.id, "impact", value)}
                     onOwnerChange={(owner) => onOwnerChange(category.id, owner)}
                   />
                 ))}

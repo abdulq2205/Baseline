@@ -2,21 +2,77 @@
 
 import { useId, useState } from "react";
 import { ASSESSMENT_STATUSES, isGap } from "@/lib/status";
+import { IMPACT_SCALE, LIKELIHOOD_SCALE } from "@/lib/risk";
 import type { AssessmentStatus } from "@/generated/prisma/enums";
 import type { CategoryNode } from "@/lib/catalog";
 import type { AnswerState } from "./assess-workspace";
+
+/**
+ * One 1-5 scale. Every option shows its label, never a bare number: "4" means
+ * nothing on its own, and the whole reason for scoring two dimensions is that
+ * each one is a question someone can actually answer.
+ */
+function RiskScale({
+  legend,
+  hint,
+  scale,
+  value,
+  onChange,
+  categoryId,
+}: {
+  legend: string;
+  hint: string;
+  scale: readonly { value: number; label: string; meaning: string }[];
+  value: number | null;
+  onChange: (value: number) => void;
+  categoryId: string;
+}) {
+  return (
+    <fieldset className="min-w-0">
+      <legend className="text-xs font-medium text-slate-600">
+        {legend} <span className="font-normal text-slate-400">{hint}</span>
+      </legend>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {scale.map((step) => {
+          const selected = value === step.value;
+          return (
+            <button
+              key={step.value}
+              type="button"
+              title={step.meaning}
+              aria-pressed={selected}
+              aria-label={`${legend} ${step.value}, ${step.label}, for ${categoryId}`}
+              onClick={() => onChange(step.value)}
+              className={`rounded-md px-2 py-1 text-xs font-medium ring-1 transition-colors ${
+                selected
+                  ? "bg-slate-900 text-white ring-slate-900"
+                  : "bg-white text-slate-500 ring-slate-200 hover:text-slate-900"
+              }`}
+            >
+              {step.value} — {step.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
 
 export function CategoryRow({
   category,
   answer,
   onStatusChange,
   onNotesChange,
+  onLikelihoodChange,
+  onImpactChange,
   onOwnerChange,
 }: {
   category: CategoryNode;
   answer: AnswerState;
   onStatusChange: (status: AssessmentStatus) => void;
   onNotesChange: (notes: string) => void;
+  onLikelihoodChange: (likelihood: number) => void;
+  onImpactChange: (impact: number) => void;
   onOwnerChange: (owner: string) => void;
 }) {
   const [showStatement, setShowStatement] = useState(false);
@@ -123,18 +179,39 @@ export function CategoryRow({
           appear only once the status is one. They are cleared on the way out
           too, so fixing a category does not leave an owner attached to it. */}
       {isGap(answer.status) && (
-        <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-md bg-slate-50 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <label htmlFor={ownerId} className="text-xs font-medium text-slate-600">
-              Owner
-            </label>
-            <input
-              id={ownerId}
-              value={answer.owner}
-              onChange={(event) => onOwnerChange(event.target.value)}
-              placeholder="Who is fixing this?"
-              className="w-44 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-900 placeholder:text-slate-400"
+        <div className="mt-3 space-y-3 rounded-md bg-slate-50 px-4 py-3">
+          <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
+            <RiskScale
+              legend="Likelihood"
+              hint="How likely is this gap to cause a problem?"
+              scale={LIKELIHOOD_SCALE}
+              value={answer.likelihood}
+              onChange={onLikelihoodChange}
+              categoryId={category.id}
             />
+            <RiskScale
+              legend="Impact"
+              hint="If it does, how bad is it?"
+              scale={IMPACT_SCALE}
+              value={answer.impact}
+              onChange={onImpactChange}
+              categoryId={category.id}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div className="flex items-center gap-2">
+              <label htmlFor={ownerId} className="text-xs font-medium text-slate-600">
+                Owner
+              </label>
+              <input
+                id={ownerId}
+                value={answer.owner}
+                onChange={(event) => onOwnerChange(event.target.value)}
+                placeholder="Who is fixing this?"
+                className="w-44 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-900 placeholder:text-slate-400"
+              />
+            </div>
           </div>
         </div>
       )}
