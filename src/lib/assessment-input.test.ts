@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { NOT_APPLICABLE_NEEDS_NOTE, validateAssessment } from "./assessment-input";
+import {
+  INCOMPLETE_RISK_SCORE,
+  NOT_APPLICABLE_NEEDS_NOTE,
+  validateAssessment,
+} from "./assessment-input";
 
 const base = { categoryId: "PR.AA", status: "PARTIAL" } as const;
 /** Narrow the result union so tests can read `.value` without repeating guards. */
@@ -81,6 +85,41 @@ describe("risk scoring and owner only survive on a gap", () => {
     expect(value.likelihood).toBeNull();
     expect(value.impact).toBeNull();
     expect(value.owner).toBeNull();
+  });
+});
+
+describe("likelihood and impact bounds", () => {
+  it.each([0, 6, -1, 2.5])("rejects %p", (bad) => {
+    expect(validateAssessment({ ...base, likelihood: bad, impact: 3 }).ok).toBe(false);
+    expect(validateAssessment({ ...base, likelihood: 3, impact: bad }).ok).toBe(false);
+  });
+
+  it.each([1, 2, 3, 4, 5])("accepts %i", (good) => {
+    expect(validateAssessment({ ...base, likelihood: good, impact: good }).ok).toBe(true);
+  });
+
+  it("coerces the strings a form sends", () => {
+    const value = valid({ ...base, likelihood: "4", impact: "2" });
+    expect(value.likelihood).toBe(4);
+    expect(value.impact).toBe(2);
+  });
+});
+
+describe("a score must have both halves or neither", () => {
+  it("rejects likelihood without impact", () => {
+    const result = validateAssessment({ ...base, likelihood: 3 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe(INCOMPLETE_RISK_SCORE);
+  });
+
+  it("rejects impact without likelihood", () => {
+    expect(validateAssessment({ ...base, impact: 3 }).ok).toBe(false);
+  });
+
+  it("allows a gap that has not been scored yet", () => {
+    const value = valid({ ...base });
+    expect(value.likelihood).toBeNull();
+    expect(value.impact).toBeNull();
   });
 });
 
