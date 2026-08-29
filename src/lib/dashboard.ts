@@ -68,7 +68,12 @@ export async function loadDashboard(): Promise<DashboardData> {
         band: score === null ? null : getBand(score).name,
       };
     })
-    .sort((a, b) => a.categoryId.localeCompare(b.categoryId));
+    // Worst first. Unscored gaps sort last: an unscored gap is not low risk,
+    // it is unjudged, and burying it above scored work would be wrong either way.
+    .sort(
+      (a, b) =>
+        (b.score ?? -1) - (a.score ?? -1) || a.categoryId.localeCompare(b.categoryId),
+    );
 
   const scored = gaps.filter((gap) => gap.score !== null);
 

@@ -172,6 +172,7 @@ export default async function DashboardPage() {
                   <th className="px-5 py-2 font-medium">Category</th>
                   <th className="px-5 py-2 font-medium">What is missing</th>
                   <th className="px-5 py-2 font-medium">Status</th>
+                  <th className="px-5 py-2 text-right font-medium">Score</th>
                   <th className="px-5 py-2 font-medium">Owner</th>
                 </tr>
               </thead>
@@ -191,6 +192,27 @@ export default async function DashboardPage() {
                     </td>
                     <td className="px-5 py-3 text-sm text-slate-600">
                       {statusMeta(gap.status).label}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3 text-right">
+                      {gap.score === null ? (
+                        <span className="text-xs text-slate-400">Not scored</span>
+                      ) : (
+                        <>
+                          <span className="text-sm font-semibold tabular-nums text-slate-900">
+                            {gap.score}
+                          </span>
+                          <span className="ml-1.5 text-xs text-slate-400 tabular-nums">
+                            {gap.likelihood}&times;{gap.impact}
+                          </span>
+                          <span
+                            className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
+                              RISK_BANDS.find((band) => band.name === gap.band)!.className
+                            }`}
+                          >
+                            {gap.band}
+                          </span>
+                        </>
+                      )}
                     </td>
                     <td className="px-5 py-3 text-sm text-slate-600">
                       {gap.owner ?? <span className="text-slate-400">Unassigned</span>}
