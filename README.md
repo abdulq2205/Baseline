@@ -1,7 +1,7 @@
 # Baseline
 
 Loads the NIST cybersecurity framework, lets you mark where you stand on each item, and
-shows what's missing and who owns fixing it.
+ranks what's missing by risk score.
 
 ## The problem
 
@@ -11,17 +11,19 @@ some good practices but nothing that maps them to a recognized standard and noth
 shows what's missing.
 
 Baseline walks through NIST CSF 2.0, records where you actually stand on each of its 22
-categories, and shows the gaps and who owns them.
+categories, scores each gap on likelihood and impact, and ranks them so you know what to
+fix first.
 
 ## Screenshots
 
-Dashboard. Coverage, coverage per function, and every open gap with its priority and
-owner. The formula is behind the info icon.
+Dashboard. Coverage, coverage per function, a 5x5 risk heat map, and every open gap
+sorted by score. The coverage formula is behind the info icon.
 
 ![Dashboard](docs/dashboard.png)
 
 Assessment. 22 categories grouped under collapsible functions. Plain English first,
-NIST's wording one click away. Autosaves.
+NIST's wording one click away. Gaps get a likelihood and an impact, with the score shown
+live. Autosaves.
 
 ![Assessment](docs/assessment.png)
 
@@ -53,6 +55,39 @@ What that costs is precision. A category marked partial tells you access control
 incomplete, but not that MFA specifically is the missing piece. If you need that, you
 need the subcategory level, which is a bigger schema and a much longer sitting.
 
+## How gaps are scored
+
+Each gap gets two numbers, 1 to 5.
+
+**Likelihood** is how probable it is that the gap causes a problem: 1 rare, 2 unlikely,
+3 possible, 4 likely, 5 almost certain. **Impact** is how bad it would be if it did:
+1 negligible, 2 minor, 3 moderate, 4 major, 5 severe. The UI shows those labels, never a
+bare number.
+
+Score is likelihood times impact, 1 to 25, and it's computed rather than stored so it
+can't drift from its inputs.
+
+| Score | Band |
+|---|---|
+| 1-4 | Low |
+| 5-9 | Medium |
+| 10-14 | High |
+| 15-25 | Critical |
+
+This replaced a single HIGH/MEDIUM/LOW label. One label is a judgement with nothing under
+it: two people can disagree and there's no way to reconcile them because there's no
+question they were both answering. Two dimensions give two answerable questions, and the
+reasoning stays visible in the inputs.
+
+It isn't more precise in any scientific sense. Multiplying two ordinal scales isn't a
+measurement, and both numbers are still opinions. What it buys is that the opinion is
+decomposed, so you can disagree with one of the two numbers specifically.
+
+The bands are uneven on purpose. The 25 combinations bunch in the middle, so equal-width
+bands would put nearly everything in one bucket. The boundaries also mean one high
+dimension alone can't reach Critical: 5x1 is Medium and 5x2 is only High. Catastrophic but
+almost impossible is a different problem from catastrophic and already happening.
+
 ## Tech stack
 
 | Layer | Choice | Why |
@@ -61,7 +96,7 @@ need the subcategory level, which is a bigger schema and a much longer sitting.
 | SQLite | Database | Under a hundred rows, never concurrent. It's a file, so there's no server to run and a clean clone gives you a working database. |
 | Prisma | ORM | The schema is the most interesting file here and needs to be readable. Three models on one page, generated types, migrations committed as SQL you can diff. |
 | Tailwind | Styling | No design system to learn. |
-| Vitest | Tests | Fast, and the logic worth testing is pure functions. |
+| Vitest | Tests | Fast, and the logic worth testing (coverage, risk scoring) is pure functions. |
 
 No chart library. The six coverage bars are styled `div`s with `role="progressbar"`. Six
 bars don't justify a dependency and this way they're accessible.
@@ -86,7 +121,7 @@ Other commands:
 
 ```bash
 npm run verify            # checks the seeded catalog against the NIST source file
-npm test                  # 42 tests covering the coverage math and input validation
+npm test                  # 85 tests covering coverage, risk scoring and validation
 npm run test:coverage
 ```
 
