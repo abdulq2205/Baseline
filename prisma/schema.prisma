@@ -62,13 +62,6 @@ enum AssessmentStatus {
   NOT_APPLICABLE
 }
 
-/// How urgent a gap is. Only meaningful when the status is a gap.
-enum Priority {
-  HIGH
-  MEDIUM
-  LOW
-}
-
 model Assessment {
   id String @id @default(cuid())
 
@@ -81,8 +74,14 @@ model Assessment {
 
   /// Set only when the status is a gap (NOT_IMPLEMENTED or PARTIAL). There is
   /// no separate Risk table; a gap is an assessment with follow-up fields set.
-  priority Priority?
-  owner    String?
+  ///
+  /// Likelihood and impact are each 1-5 and are scored separately, replacing a
+  /// single subjective priority label. The score is likelihood x impact and is
+  /// computed in src/lib/risk.ts, never stored: a stored score is a second
+  /// source of truth that goes stale the moment either input is edited.
+  likelihood Int?
+  impact     Int?
+  owner      String?
 
   updatedAt DateTime @updatedAt
 

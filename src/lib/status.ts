@@ -66,11 +66,3 @@ export function statusMeta(value: AssessmentStatus): StatusMeta {
 export const isGap = (status: AssessmentStatus | null | undefined): boolean =>
   status === "NOT_IMPLEMENTED" || status === "PARTIAL";
 
-/** Ordered most urgent first, which is also the order the dashboard sorts by. */
-export const PRIORITIES = [
-  { value: "HIGH", label: "High", className: "bg-rose-50 text-rose-800 ring-rose-600/30" },
-  { value: "MEDIUM", label: "Medium", className: "bg-amber-50 text-amber-900 ring-amber-600/30" },
-  { value: "LOW", label: "Low", className: "bg-slate-100 text-slate-700 ring-slate-500/30" },
-] as const;
-
-export type PriorityValue = (typeof PRIORITIES)[number]["value"];

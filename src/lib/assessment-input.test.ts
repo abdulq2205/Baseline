@@ -54,16 +54,18 @@ describe("NOT_APPLICABLE requires a justification", () => {
   });
 });
 
-describe("priority and owner only survive on a gap", () => {
+describe("risk scoring and owner only survive on a gap", () => {
   it.each(["NOT_IMPLEMENTED", "PARTIAL"])("keeps them on %s", (status) => {
-    const value = valid({ ...base, status, priority: "HIGH", owner: "Sam" });
-    expect(value.priority).toBe("HIGH");
+    const value = valid({ ...base, status, likelihood: 4, impact: 5, owner: "Sam" });
+    expect(value.likelihood).toBe(4);
+    expect(value.impact).toBe(5);
     expect(value.owner).toBe("Sam");
   });
 
   it("clears them when a gap is fixed", () => {
-    const value = valid({ ...base, status: "IMPLEMENTED", priority: "HIGH", owner: "Sam" });
-    expect(value.priority).toBeNull();
+    const value = valid({ ...base, status: "IMPLEMENTED", likelihood: 4, impact: 5, owner: "Sam" });
+    expect(value.likelihood).toBeNull();
+    expect(value.impact).toBeNull();
     expect(value.owner).toBeNull();
   });
 
@@ -72,19 +74,13 @@ describe("priority and owner only survive on a gap", () => {
       ...base,
       status: "NOT_APPLICABLE",
       notes: "Out of scope.",
-      priority: "HIGH",
+      likelihood: 4,
+      impact: 5,
       owner: "Sam",
     });
-    expect(value.priority).toBeNull();
+    expect(value.likelihood).toBeNull();
+    expect(value.impact).toBeNull();
     expect(value.owner).toBeNull();
-  });
-
-  it("rejects a priority outside the enum", () => {
-    expect(validateAssessment({ ...base, priority: "URGENT" }).ok).toBe(false);
-  });
-
-  it("allows a gap with no priority set yet", () => {
-    expect(valid({ ...base, status: "NOT_IMPLEMENTED" }).priority).toBeNull();
   });
 });
 

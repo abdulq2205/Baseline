@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { loadDashboard } from "@/lib/dashboard";
 import { CoverageInfo } from "./coverage-info";
-import { PRIORITIES, statusMeta } from "@/lib/status";
-import type { Priority } from "@/generated/prisma/enums";
+import { statusMeta } from "@/lib/status";
 
 export const metadata = { title: "Dashboard — Baseline" };
 export const dynamic = "force-dynamic";
@@ -31,20 +30,6 @@ function Metric({
       </p>
       <p className="mt-1 text-sm text-slate-500">{sub}</p>
     </div>
-  );
-}
-
-function PriorityBadge({ priority }: { priority: Priority | null }) {
-  if (priority === null) {
-    return <span className="text-xs text-slate-400">Not set</span>;
-  }
-  const meta = PRIORITIES.find((candidate) => candidate.value === priority)!;
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${meta.className}`}
-    >
-      {meta.label}
-    </span>
   );
 }
 
@@ -156,7 +141,6 @@ export default async function DashboardPage() {
                   <th className="px-5 py-2 font-medium">Category</th>
                   <th className="px-5 py-2 font-medium">What is missing</th>
                   <th className="px-5 py-2 font-medium">Status</th>
-                  <th className="px-5 py-2 font-medium">Priority</th>
                   <th className="px-5 py-2 font-medium">Owner</th>
                 </tr>
               </thead>
@@ -176,9 +160,6 @@ export default async function DashboardPage() {
                     </td>
                     <td className="px-5 py-3 text-sm text-slate-600">
                       {statusMeta(gap.status).label}
-                    </td>
-                    <td className="px-5 py-3">
-                      <PriorityBadge priority={gap.priority} />
                     </td>
                     <td className="px-5 py-3 text-sm text-slate-600">
                       {gap.owner ?? <span className="text-slate-400">Unassigned</span>}

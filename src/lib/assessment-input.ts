@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AssessmentStatus, Priority } from "@/generated/prisma/enums";
+import { AssessmentStatus } from "@/generated/prisma/enums";
 import { isGap } from "@/lib/status";
 
 /**
@@ -15,7 +15,8 @@ const schema = z.object({
   categoryId: z.string().regex(/^[A-Z]{2}\.[A-Z]{2}$/, "Not a category ID"),
   status: z.enum(AssessmentStatus),
   notes: z.string().max(4000, "Notes are limited to 4000 characters").nullish(),
-  priority: z.enum(Priority).nullish(),
+  likelihood: z.number().int().min(1).max(5).nullish(),
+  impact: z.number().int().min(1).max(5).nullish(),
   owner: z.string().max(120, "Owner is limited to 120 characters").nullish(),
 });
 
@@ -23,7 +24,8 @@ export type ValidAssessment = {
   categoryId: string;
   status: AssessmentStatus;
   notes: string | null;
-  priority: Priority | null;
+  likelihood: number | null;
+  impact: number | null;
   owner: string | null;
 };
 
@@ -54,10 +56,10 @@ export function validateAssessment(raw: unknown): ValidationResult {
     return { ok: false, error: NOT_APPLICABLE_NEEDS_NOTE };
   }
 
-  // Priority and owner only mean anything on a gap. Clearing them here rather
+  // Risk scoring and owner only mean anything on a gap. Clearing them here rather
   // than ignoring them means that fixing a category — moving it from PARTIAL to
-  // IMPLEMENTED — does not leave an orphaned "HIGH, owned by Sam" hanging off a
-  // row that is no longer a gap, which would then show up on the dashboard.
+  // IMPLEMENTED — does not leave an orphaned score and owner hanging off a row
+  // that is no longer a gap, which would then show up on the dashboard.
   const gap = isGap(status);
 
   return {
@@ -66,7 +68,8 @@ export function validateAssessment(raw: unknown): ValidationResult {
       categoryId,
       status,
       notes,
-      priority: gap ? (parsed.data.priority ?? null) : null,
+      likelihood: gap ? (parsed.data.likelihood ?? null) : null,
+      impact: gap ? (parsed.data.impact ?? null) : null,
       owner: gap ? clean(parsed.data.owner) : null,
     },
   };

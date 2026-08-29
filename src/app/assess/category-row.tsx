@@ -1,8 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ASSESSMENT_STATUSES, PRIORITIES, isGap } from "@/lib/status";
-import type { AssessmentStatus, Priority } from "@/generated/prisma/enums";
+import { ASSESSMENT_STATUSES, isGap } from "@/lib/status";
+import type { AssessmentStatus } from "@/generated/prisma/enums";
 import type { CategoryNode } from "@/lib/catalog";
 import type { AnswerState } from "./assess-workspace";
 
@@ -11,14 +11,12 @@ export function CategoryRow({
   answer,
   onStatusChange,
   onNotesChange,
-  onPriorityChange,
   onOwnerChange,
 }: {
   category: CategoryNode;
   answer: AnswerState;
   onStatusChange: (status: AssessmentStatus) => void;
   onNotesChange: (notes: string) => void;
-  onPriorityChange: (priority: Priority) => void;
   onOwnerChange: (owner: string) => void;
 }) {
   const [showStatement, setShowStatement] = useState(false);
@@ -126,29 +124,6 @@ export function CategoryRow({
           too, so fixing a category does not leave an owner attached to it. */}
       {isGap(answer.status) && (
         <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-md bg-slate-50 px-4 py-3">
-          <fieldset className="flex flex-wrap items-center gap-1.5">
-            <legend className="sr-only">Priority for {category.id}</legend>
-            <span className="mr-1 text-xs font-medium text-slate-600">Priority</span>
-            {PRIORITIES.map((priority) => {
-              const selected = answer.priority === priority.value;
-              return (
-                <button
-                  key={priority.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => onPriorityChange(priority.value)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium ring-1 transition-colors ${
-                    selected
-                      ? priority.className
-                      : "bg-white text-slate-500 ring-slate-200 hover:text-slate-900"
-                  }`}
-                >
-                  {priority.label}
-                </button>
-              );
-            })}
-          </fieldset>
-
           <div className="flex items-center gap-2">
             <label htmlFor={ownerId} className="text-xs font-medium text-slate-600">
               Owner

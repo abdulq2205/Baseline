@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import type { AssessmentStatus, Priority } from "@/generated/prisma/enums";
+import type { AssessmentStatus } from "@/generated/prisma/enums";
 
 /**
  * The whole catalog with each category's current answer attached.
@@ -17,7 +17,8 @@ export type CategoryNode = {
   assessment: {
     status: AssessmentStatus;
     notes: string | null;
-    priority: Priority | null;
+    likelihood: number | null;
+    impact: number | null;
     owner: string | null;
   } | null;
 };
@@ -36,7 +37,7 @@ export async function loadCatalog(): Promise<FunctionNode[]> {
         orderBy: { id: "asc" },
         include: {
           assessment: {
-            select: { status: true, notes: true, priority: true, owner: true },
+            select: { status: true, notes: true, likelihood: true, impact: true, owner: true },
           },
         },
       },

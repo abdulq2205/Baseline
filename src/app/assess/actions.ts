@@ -11,13 +11,13 @@ export async function saveAssessment(raw: unknown): Promise<SaveResult> {
   const validated = validateAssessment(raw);
   if (!validated.ok) return { ok: false, error: validated.error };
 
-  const { categoryId, status, notes, priority, owner } = validated.value;
+  const { categoryId, status, notes, likelihood, impact, owner } = validated.value;
 
   try {
     await prisma.assessment.upsert({
       where: { categoryId },
-      create: { categoryId, status, notes, priority, owner },
-      update: { status, notes, priority, owner },
+      create: { categoryId, status, notes, likelihood, impact, owner },
+      update: { status, notes, likelihood, impact, owner },
     });
   } catch {
     // Almost always a foreign key miss: an ID that is well-formed but not in

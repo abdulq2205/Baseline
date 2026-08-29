@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/db";
 import { calculateCoverage, coverageByGroup, type Coverage, type GroupCoverage } from "@/lib/coverage";
-import type { AssessmentStatus, Priority } from "@/generated/prisma/enums";
+import type { AssessmentStatus } from "@/generated/prisma/enums";
 
 export type OpenGap = {
   categoryId: string;
   categoryName: string;
   plainLanguage: string | null;
   status: AssessmentStatus;
-  priority: Priority | null;
+  likelihood: number | null;
+  impact: number | null;
   owner: string | null;
 };
 
@@ -19,17 +20,13 @@ export type DashboardData = {
   gaps: OpenGap[];
 };
 
-/** Most urgent first. An unset priority sorts last — it is not "low", it is unset. */
-const PRIORITY_RANK: Record<Priority, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-const rank = (priority: Priority | null) => (priority === null ? 3 : PRIORITY_RANK[priority]);
-
 export async function loadDashboard(): Promise<DashboardData> {
   const functions = await prisma.function.findMany({
     orderBy: { order: "asc" },
     include: {
       categories: {
         orderBy: { id: "asc" },
-        include: { assessment: { select: { status: true, priority: true, owner: true } } },
+        include: { assessment: { select: { status: true, likelihood: true, impact: true, owner: true } } },
       },
     },
   });
@@ -50,10 +47,11 @@ export async function loadDashboard(): Promise<DashboardData> {
       categoryName: category.name,
       plainLanguage: category.plainLanguage,
       status: category.assessment!.status,
-      priority: category.assessment!.priority,
+      likelihood: category.assessment!.likelihood,
+      impact: category.assessment!.impact,
       owner: category.assessment!.owner,
     }))
-    .sort((a, b) => rank(a.priority) - rank(b.priority) || a.categoryId.localeCompare(b.categoryId));
+    .sort((a, b) => a.categoryId.localeCompare(b.categoryId));
 
   return {
     coverage: calculateCoverage(statuses),

@@ -5,7 +5,7 @@ import { CategoryRow } from "./category-row";
 import { saveAssessment } from "./actions";
 import { NOT_APPLICABLE_NEEDS_NOTE } from "@/lib/assessment-input";
 import { isGap } from "@/lib/status";
-import type { AssessmentStatus, Priority } from "@/generated/prisma/enums";
+import type { AssessmentStatus } from "@/generated/prisma/enums";
 import type { FunctionNode } from "@/lib/catalog";
 
 /** How long to wait after the last keystroke before writing notes. */
@@ -16,26 +16,29 @@ const SAVED_VISIBLE_MS = 2000;
 export type AnswerState = {
   status: AssessmentStatus | null;
   notes: string;
-  priority: Priority | null;
+  likelihood: number | null;
+  impact: number | null;
   owner: string;
   sync: "idle" | "saving" | "saved" | "error";
   error?: string;
 };
 
 /** The fields a write actually carries — everything but the sync bookkeeping. */
-type Draft = Pick<AnswerState, "status" | "notes" | "priority" | "owner">;
+type Draft = Pick<AnswerState, "status" | "notes" | "likelihood" | "impact" | "owner">;
 
 const draftOf = (answer: AnswerState): Draft => ({
   status: answer.status,
   notes: answer.notes,
-  priority: answer.priority,
+  likelihood: answer.likelihood,
+  impact: answer.impact,
   owner: answer.owner,
 });
 
 const sameDraft = (a: Draft, b: Draft) =>
   a.status === b.status &&
   a.notes === b.notes &&
-  a.priority === b.priority &&
+  a.likelihood === b.likelihood &&
+  a.impact === b.impact &&
   a.owner === b.owner;
 
 export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
@@ -53,7 +56,8 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
         {
           status: category.assessment?.status ?? null,
           notes: category.assessment?.notes ?? "",
-          priority: category.assessment?.priority ?? null,
+          likelihood: category.assessment?.likelihood ?? null,
+          impact: category.assessment?.impact ?? null,
           owner: category.assessment?.owner ?? "",
           sync: "idle" as const,
         },
@@ -121,7 +125,8 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
         const next: AnswerState = {
           ...prev[id],
           status,
-          priority: gap ? prev[id].priority : null,
+          likelihood: gap ? prev[id].likelihood : null,
+          impact: gap ? prev[id].impact : null,
           owner: gap ? prev[id].owner : "",
         };
 
@@ -162,20 +167,6 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
 
         const next = { ...prev[id], notes };
         schedule(id, draftOf(next), NOTES_DEBOUNCE_MS);
-        return { ...prev, [id]: { ...next, sync: "saving" } };
-      });
-    },
-    [schedule],
-  );
-
-  /** Priority is a click, so it writes immediately. Owner is typed, so it waits. */
-  const onPriorityChange = useCallback(
-    (id: string, priority: Priority) => {
-      setAnswers((prev) => {
-        if (prev[id].status === null) return prev;
-        // Clicking the selected priority again clears it.
-        const next = { ...prev[id], priority: prev[id].priority === priority ? null : priority };
-        schedule(id, draftOf(next), 0);
         return { ...prev, [id]: { ...next, sync: "saving" } };
       });
     },
@@ -236,7 +227,6 @@ export function AssessWorkspace({ functions }: { functions: FunctionNode[] }) {
                     answer={answers[category.id]}
                     onStatusChange={(status) => onStatusChange(category.id, status)}
                     onNotesChange={(notes) => onNotesChange(category.id, notes)}
-                    onPriorityChange={(priority) => onPriorityChange(category.id, priority)}
                     onOwnerChange={(owner) => onOwnerChange(category.id, owner)}
                   />
                 ))}
