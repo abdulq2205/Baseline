@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { ASSESSMENT_STATUSES, isGap } from "@/lib/status";
-import { IMPACT_SCALE, LIKELIHOOD_SCALE } from "@/lib/risk";
+import { IMPACT_SCALE, LIKELIHOOD_SCALE, calculateScore, getBand } from "@/lib/risk";
 import type { AssessmentStatus } from "@/generated/prisma/enums";
 import type { CategoryNode } from "@/lib/catalog";
 import type { AnswerState } from "./assess-workspace";
@@ -55,6 +55,36 @@ function RiskScale({
         })}
       </div>
     </fieldset>
+  );
+}
+
+/**
+ * The score, live. Showing it as the user picks means the consequence of a
+ * choice is visible before it is saved, rather than turning up on the dashboard
+ * later as a number nobody remembers choosing.
+ */
+function ScorePreview({ likelihood, impact }: { likelihood: number | null; impact: number | null }) {
+  if (likelihood === null || impact === null) {
+    return (
+      <p className="text-xs text-slate-400">
+        Pick both to score this gap.
+      </p>
+    );
+  }
+  const score = calculateScore(likelihood, impact);
+  const band = getBand(score);
+  return (
+    <p className="flex items-center gap-2 text-xs text-slate-600">
+      <span>
+        {likelihood} × {impact} =
+      </span>
+      <span className="text-sm font-semibold tabular-nums text-slate-900">{score}</span>
+      <span
+        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${band.className}`}
+      >
+        {band.name}
+      </span>
+    </p>
   );
 }
 
@@ -200,6 +230,7 @@ export function CategoryRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <ScorePreview likelihood={answer.likelihood} impact={answer.impact} />
             <div className="flex items-center gap-2">
               <label htmlFor={ownerId} className="text-xs font-medium text-slate-600">
                 Owner
