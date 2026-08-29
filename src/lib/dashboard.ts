@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { calculateCoverage, coverageByGroup, type Coverage, type GroupCoverage } from "@/lib/coverage";
+import { RISK_BANDS, calculateScore, getBand, type RiskBandName } from "@/lib/risk";
 import type { AssessmentStatus } from "@/generated/prisma/enums";
 
 export type OpenGap = {
@@ -10,7 +11,13 @@ export type OpenGap = {
   likelihood: number | null;
   impact: number | null;
   owner: string | null;
+  /** Null when the gap has not been scored yet. */
+  score: number | null;
+  band: RiskBandName | null;
 };
+
+/** One cell of the 5x5 matrix. Only occupied cells appear. */
+export type HeatMapCell = { likelihood: number; impact: number; count: number };
 
 export type DashboardData = {
   coverage: Coverage;
@@ -18,6 +25,9 @@ export type DashboardData = {
   assessed: number;
   totalCategories: number;
   gaps: OpenGap[];
+  heatMap: HeatMapCell[];
+  bandCounts: { band: RiskBandName; count: number }[];
+  unscoredGaps: number;
 };
 
 export async function loadDashboard(): Promise<DashboardData> {
@@ -42,16 +52,40 @@ export async function loadDashboard(): Promise<DashboardData> {
         category.assessment?.status === "NOT_IMPLEMENTED" ||
         category.assessment?.status === "PARTIAL",
     )
-    .map((category) => ({
-      categoryId: category.id,
-      categoryName: category.name,
-      plainLanguage: category.plainLanguage,
-      status: category.assessment!.status,
-      likelihood: category.assessment!.likelihood,
-      impact: category.assessment!.impact,
-      owner: category.assessment!.owner,
-    }))
+    .map((category) => {
+      const { status, likelihood, impact, owner } = category.assessment!;
+      // Both or neither, enforced by the validator, so one check covers it.
+      const score = likelihood !== null && impact !== null ? calculateScore(likelihood, impact) : null;
+      return {
+        categoryId: category.id,
+        categoryName: category.name,
+        plainLanguage: category.plainLanguage,
+        status,
+        likelihood,
+        impact,
+        owner,
+        score,
+        band: score === null ? null : getBand(score).name,
+      };
+    })
     .sort((a, b) => a.categoryId.localeCompare(b.categoryId));
+
+  const scored = gaps.filter((gap) => gap.score !== null);
+
+  // Only occupied cells are returned. An empty cell renders empty rather than
+  // as a zero, so the eye lands on where the risk actually is.
+  const counts = new Map<string, HeatMapCell>();
+  for (const gap of scored) {
+    const key = `${gap.likelihood}:${gap.impact}`;
+    const cell = counts.get(key) ?? { likelihood: gap.likelihood!, impact: gap.impact!, count: 0 };
+    cell.count += 1;
+    counts.set(key, cell);
+  }
+
+  const bandCounts = RISK_BANDS.map((band) => ({
+    band: band.name,
+    count: scored.filter((gap) => gap.band === band.name).length,
+  }));
 
   return {
     coverage: calculateCoverage(statuses),
@@ -59,5 +93,8 @@ export async function loadDashboard(): Promise<DashboardData> {
     assessed: statuses.length,
     totalCategories: categories.length,
     gaps,
+    heatMap: [...counts.values()],
+    bandCounts,
+    unscoredGaps: gaps.length - scored.length,
   };
 }

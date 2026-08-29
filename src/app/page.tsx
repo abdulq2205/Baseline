@@ -2,6 +2,8 @@ import Link from "next/link";
 import { loadDashboard } from "@/lib/dashboard";
 import { CoverageInfo } from "./coverage-info";
 import { statusMeta } from "@/lib/status";
+import { RISK_BANDS } from "@/lib/risk";
+import { HeatMap } from "./heat-map";
 
 export const metadata = { title: "Dashboard — Baseline" };
 export const dynamic = "force-dynamic";
@@ -34,7 +36,8 @@ function Metric({
 }
 
 export default async function DashboardPage() {
-  const { coverage, byFunction, assessed, totalCategories, gaps } = await loadDashboard();
+  const { coverage, byFunction, assessed, totalCategories, gaps, heatMap, bandCounts, unscoredGaps } =
+    await loadDashboard();
 
   return (
     <div className="space-y-8">
@@ -117,6 +120,34 @@ export default async function DashboardPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-slate-900">Risk of open gaps</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Likelihood x impact, 1 to 25.
+          {unscoredGaps > 0 && ` ${unscoredGaps} gap${unscoredGaps === 1 ? "" : "s"} not scored yet.`}
+        </p>
+
+        <div className="mt-4 flex flex-wrap items-start gap-x-10 gap-y-6">
+          <HeatMap cells={heatMap} />
+
+          <ul className="space-y-2">
+            {bandCounts.map(({ band, count }) => {
+              const meta = RISK_BANDS.find((candidate) => candidate.name === band)!;
+              return (
+                <li key={band} className="flex items-center gap-3">
+                  <span className={`h-3 w-3 shrink-0 rounded-sm ${meta.cellClassName}`} />
+                  <span className="w-16 text-sm text-slate-600">{band}</span>
+                  <span className="text-sm font-semibold tabular-nums text-slate-900">{count}</span>
+                  <span className="text-xs text-slate-400">
+                    {meta.min}&ndash;{meta.max}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white">
