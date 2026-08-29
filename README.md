@@ -1,7 +1,7 @@
 # Baseline
 
-Loads the NIST cybersecurity framework, lets you mark where you stand on each item, and
-ranks what's missing by risk score.
+Translates the 22 NIST CSF 2.0 control categories into plain-language explanations, lets
+you mark where you stand on each one, and surfaces the gaps by risk score on a dashboard.
 
 ## The problem
 
@@ -10,9 +10,9 @@ adequate, usually by a partner, a funder, or a customer. Most can't answer. They
 some good practices but nothing that maps them to a recognized standard and nothing that
 shows what's missing.
 
-Baseline walks through NIST CSF 2.0, records where you actually stand on each of its 22
-categories, scores each gap on likelihood and impact, and ranks them so you know what to
-fix first.
+Baseline puts each of the 22 NIST CSF 2.0 categories in plain English, records where you
+actually stand on each one, scores every gap on likelihood and impact, and ranks them so
+you know what to fix first.
 
 ## Screenshots
 
@@ -21,9 +21,9 @@ sorted by score. The coverage formula is behind the info icon.
 
 ![Dashboard](docs/dashboard.png)
 
-Assessment. 22 categories grouped under collapsible functions. Plain English first,
-NIST's wording one click away. Gaps get a likelihood and an impact, with the score shown
-live. Autosaves.
+Assessment. 22 categories grouped under collapsible functions. The plain-English
+explanation leads, NIST's wording is one click away. Gaps get a likelihood and an impact
+with the score shown live. Autosaves, no submit button.
 
 ![Assessment](docs/assessment.png)
 
@@ -64,8 +64,9 @@ Each gap gets two numbers, 1 to 5.
 1 negligible, 2 minor, 3 moderate, 4 major, 5 severe. The UI shows those labels, never a
 bare number.
 
-Score is likelihood times impact, 1 to 25, and it's computed rather than stored so it
-can't drift from its inputs.
+Score is likelihood times impact across a 25-cell matrix, and it's computed rather than
+stored so it can't drift from its inputs. The 25 cells produce 14 distinct scores, which
+fall into four bands.
 
 | Score | Band |
 |---|---|
@@ -74,8 +75,8 @@ can't drift from its inputs.
 | 10-14 | High |
 | 15-25 | Critical |
 
-This replaced a single HIGH/MEDIUM/LOW label. One label is a judgement with nothing under
-it: two people can disagree and there's no way to reconcile them because there's no
+This replaced three subjective priority labels: HIGH, MEDIUM and LOW. One label is a
+judgement with nothing under it: two people can disagree and there's no way to reconcile them because there's no
 question they were both answering. Two dimensions give two answerable questions, and the
 reasoning stays visible in the inputs.
 

@@ -46,3 +46,6 @@ next-env.d.ts
 # local database
 /prisma/*.db
 /prisma/*.db-journal
+
+# Private assessment findings, deliberately untracked
+/FINDINGS-private.md
