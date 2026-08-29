@@ -208,3 +208,57 @@ honest middle for a number whose job is tracking direction, not grading.
 
 ---
 
+## 0011 — Two-dimensional risk scoring replaces the priority label
+
+**Phase:** risk scoring
+
+**Decision.** `priority` (HIGH/MEDIUM/LOW) is gone. Every gap carries a `likelihood` and
+an `impact`, each 1-5, and the score is their product on a 1-25 scale.
+
+**Why.** A single priority label is a judgement with nothing underneath it. Two people can
+put the same gap in different buckets and there is no way to reconcile them, because there
+is no question they were both answering. Splitting it gives two questions someone can
+actually answer — how likely is this to bite us, and how bad would it be — and the
+reasoning stays visible in the inputs instead of being collapsed into the output.
+
+**What this is not.** It is not more precise in any scientific sense. Multiplying two
+ordinal scales does not produce a measurement: a 12 is not twice as bad as a 6, and both
+inputs are still opinions. What it buys is that the opinion is decomposed and reproducible.
+Anyone can look at a 4 x 5 and disagree with one of the two numbers specifically.
+
+**Why the bands are uneven.** Low 1-4, Medium 5-9, High 10-14, Critical 15-25. The 25
+combinations do not spread evenly across the range — far more land in the middle than at
+either end — so equal-width bands would put most gaps in one bucket and say nothing.
+
+The boundaries also mean one elevated dimension alone cannot reach Critical: 5 x 1 is
+Medium and 5 x 2 is only High. Something catastrophic that will almost certainly never
+happen is a different problem from something catastrophic that is already happening, and
+the band should say so. Two tests pin this deliberately, so widening a band later fails
+the suite and forces the question.
+
+**Score is computed, never stored.** A stored score is a second source of truth that goes
+stale the moment either input is edited.
+
+---
+
+## 0012 — The migrated scores are an approximation, and were re-scored
+
+**Phase:** risk scoring
+
+**Decision.** The migration mapped every existing priority forward — HIGH to 4 x 4,
+MEDIUM to 3 x 3, LOW to 2 x 2 — rather than dropping the column. Those values were then
+replaced by scoring each gap individually.
+
+**Why map at all.** SQLite cannot drop a column in place, so the table is rebuilt. The
+copy step is hand-written rather than left as Prisma generated it, because the generated
+version would have silently discarded every priority ever recorded.
+
+**Why the mapped values were not kept.** They preserve the old ranking but they are not an
+assessment. Twenty-two gaps sharing three scores is the old three-bucket problem wearing
+new numbers, and presenting them as scored would be a lie about work nobody did. Every gap
+has since been scored on the two questions, which is why the register now separates things
+the old labels could not: `DE.CM` sits above the other former HIGHs at 4 x 5, because
+unlogged access to client records is both likely to matter and severe when it does.
+
+**The general rule.** A migration's job is to lose nothing. It is not to manufacture
+judgements that were never made.
