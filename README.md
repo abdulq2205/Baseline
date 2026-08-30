@@ -149,8 +149,7 @@ The response is committed verbatim to `data/csf-2.0.json` and you can re-downloa
 `./scripts/fetch-catalog.sh`. NIST's category descriptions are stored exactly as
 published and never paraphrased.
 
-The plain English explanations in `prisma/seed-plain-language.ts` are not NIST's words. I
-wrote them, so anything clumsy in them is mine.
+The plain English explanations in `prisma/seed-plain-language.ts` are not NIST's words.
 
 NIST doesn't endorse this tool. "NIST" and "NIST Cybersecurity Framework" appear here
 only to identify where the framework content came from.
