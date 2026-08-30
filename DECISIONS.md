@@ -208,6 +208,28 @@ honest middle for a number whose job is tracking direction, not grading.
 
 ---
 
+## 0010 — Assessment data is the user's, and ships empty
+
+**Phase:** 5
+
+**Decision.** The repository seeds the catalog and nothing else. There is no bundled
+example assessment.
+
+**Why.** An assessment is a claim about a specific organization on a specific day. Shipping
+one as demo data means the first thing a new user sees is somebody else's answers, and a
+routine `npm run seed` would overwrite their own work the moment they re-ran it. The
+catalog is reference data and belongs in the repository; answers are not and do not.
+
+**What it costs.** A fresh clone has an empty dashboard, so the screenshots show the tool
+rather than a filled-in result. That is the honest trade. The alternative is inventing an
+organization, and a fabricated assessment inside a tool whose whole point is honest
+self-assessment would be a strange thing to ship.
+
+**Where answers live.** `prisma/dev.db`, which is git-ignored. Nothing a user types is
+committed, and nothing leaves their machine.
+
+---
+
 ## 0011 — Two-dimensional risk scoring replaces the priority label
 
 **Phase:** risk scoring
@@ -241,24 +263,23 @@ stale the moment either input is edited.
 
 ---
 
-## 0012 — The migrated scores are an approximation, and were re-scored
+## 0012 — A migration preserves data; it does not manufacture judgements
 
 **Phase:** risk scoring
 
-**Decision.** The migration mapped every existing priority forward — HIGH to 4 x 4,
-MEDIUM to 3 x 3, LOW to 2 x 2 — rather than dropping the column. Those values were then
-replaced by scoring each gap individually.
+**Decision.** The migration off the old priority labels maps every existing value forward —
+HIGH to 4 x 4, MEDIUM to 3 x 3, LOW to 2 x 2 — rather than dropping the column. Any
+assessment carried through it should then be re-scored deliberately.
 
-**Why map at all.** SQLite cannot drop a column in place, so the table is rebuilt. The
-copy step is hand-written rather than left as Prisma generated it, because the generated
-version would have silently discarded every priority ever recorded.
+**Why map at all.** SQLite cannot drop a column in place, so the table is rebuilt. The copy
+step is hand-written rather than left as Prisma generated it, because the generated version
+would have silently discarded every priority ever recorded.
 
-**Why the mapped values were not kept.** They preserve the old ranking but they are not an
-assessment. Twenty-two gaps sharing three scores is the old three-bucket problem wearing
-new numbers, and presenting them as scored would be a lie about work nobody did. Every gap
-has since been scored on the two questions, which is why the register now separates things
-the old labels could not: `DE.CM` sits above the other former HIGHs at 4 x 5, because
-unlogged access to client records is both likely to matter and severe when it does.
+**Why the mapped values are not an assessment.** They preserve the old ranking, but they
+are an approximation of a label nobody scored on two axes. Left alone they collapse every
+gap onto three scores, which is the old three-bucket problem wearing new numbers.
+Presenting them as scored would be a claim about work nobody did.
 
-**The general rule.** A migration's job is to lose nothing. It is not to manufacture
-judgements that were never made.
+**The general rule.** A migration's job is to lose nothing. It is not to invent judgements
+that were never made, and code that carries old data forward should be honest about which
+of the two it is doing.

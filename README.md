@@ -16,14 +16,17 @@ you know what to fix first.
 
 ## Screenshots
 
-Dashboard. Coverage, coverage per function, a 5x5 risk heat map, and every open gap
-sorted by score. The coverage formula is behind the info icon.
+Dashboard, on a fresh install. Coverage, coverage per function, a 5x5 risk heat map and
+every open gap sorted by score. Coverage reads as a dash rather than 0% until something
+is assessed, because nothing measured and nothing in place are different answers. The
+formula is behind the info icon.
 
 ![Dashboard](docs/dashboard.png)
 
-Assessment. 22 categories grouped under collapsible functions. The plain-English
-explanation leads, NIST's wording is one click away. Gaps get a likelihood and an impact
-with the score shown live. Autosaves, no submit button.
+Assessment. All 22 categories grouped under collapsible functions. The plain-English
+explanation leads, NIST's wording is one click away. Marking a category not implemented
+or partial reveals a likelihood and impact selector with the score shown live. Autosaves,
+no submit button.
 
 ![Assessment](docs/assessment.png)
 
@@ -117,6 +120,10 @@ npx prisma migrate dev    # creates prisma/dev.db and applies the schema
 npm run seed              # loads the 22 categories from data/csf-2.0.json
 npm run dev               # http://localhost:3000
 ```
+
+That gives you an empty assessment: all 22 categories loaded, nothing answered.
+Open `/assess` and start marking. There is no submit button, so answers save as you
+make them.
 
 Other commands:
 
